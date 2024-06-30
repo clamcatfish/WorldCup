@@ -1,16 +1,13 @@
 // src/routes/api/scores/add.js
-import { connectToDatabase } from '../../../lib/index.js';
+import { connectToDatabase } from '$lib'
 
 // @ts-ignore
-export async function post({ request }) {
+export async function POST({ request }) {
   const db = await connectToDatabase();
-  const { player1, player2, player1_score, player2_score } = await request.json();
+  const { players } = await request.json();
   
   const newScore = {
-    player1,
-    player2,
-    player1_score,
-    player2_score,
+    players,
     played_at: new Date()
   };
   
