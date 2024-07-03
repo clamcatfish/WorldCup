@@ -5,7 +5,7 @@ import { connectToDatabase } from '$lib'
 export async function POST({ request }) {
   try {
     const db = await connectToDatabase();
-    const collection = db.collection('games')
+    const collection = db.collection('players')
 
     const data = await request.json()
     const result = await collection.insertOne(data)
@@ -26,18 +26,3 @@ export async function POST({ request }) {
     });
   }
 }
-
-//   const { players } = await request.json();
-  
-//   const newScore = {
-//     players,
-//     played_at: new Date()
-//   };
-  
-//   await db.collection('games').insertOne(newScore);
-  
-//   return {
-//     status: 201,
-//     body: newScore,
-//   };
-// }

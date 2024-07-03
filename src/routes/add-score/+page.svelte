@@ -2,10 +2,13 @@
   // @ts-ignore
   import axios from "axios";
   import PlayerRow from "../../components/PlayerRow.svelte";
+  import { onMount } from "svelte";
 
   let playerCount = 2;
   let setCount = 2;
   let players = [];
+  let errorMessage = "";
+  let winner = null;
   for (let i = 0; i < playerCount; i++) {
     players.push({
       name: `Player ${i + 1}`,
@@ -14,6 +17,16 @@
       tiebreakers: Array(setCount).fill(null),
     });
   }
+
+  let ids = [];
+  onMount(async () => {
+    try {
+      const response = await axios.get("/api/players");
+      ids = response.data;
+    } catch (error) {
+      console.log("Error fetching players:", error);
+    }
+  });
 
   function addPlayerRow() {
     players.push({
@@ -32,10 +45,9 @@
     players = [...players];
   }
 
-  function handleNameChange(event, player) {
-    const value = event.target.value;
-    player.name = value;
-    console.log(player);
+  function handleNameChange(event, index) {
+    players[index].playerId = event.target.value;
+    console.log(players[index]);
   }
 
   function handleScoreChange(player, index, value) {
@@ -66,10 +78,45 @@
     players = [...players];
   }
 
+  function determineWinner() {
+    let totalScores = Array(playerCount).fill(0);
+
+    for (let j = 0; j < setCount; j++) {
+      let combinedScores = players.map(
+        (player) => player.scores[j] + player.tiebreakers[j]
+      );
+      let winningIndex = combinedScores.indexOf(Math.min(...combinedScores));
+      totalScores[winningIndex] += 1;
+    }
+
+    let winnerIndex = totalScores.indexOf(Math.max(...totalScores));
+    return winnerIndex;
+  }
+
   async function handleSubmit() {
+    winner = players[determineWinner()].playerId;
+    const date = new Date();
     try {
-      const response = await axios.post("/api/scores/add", { players });
+      if (!winner) {
+        errorMessage =
+          "A winner could not be determined. Please check the scores.";
+        return;
+      }
+      const response = await axios.post("/api/scores/add", {
+        players,
+        winner,
+        date,
+      });
       console.log("Score saved:", response.data);
+      players = [];
+      for (let i = 0; i < playerCount; i++) {
+        players.push({
+          name: `Player ${i + 1}`,
+          playerId: "",
+          scores: Array(setCount).fill(0),
+          tiebreakers: Array(setCount).fill(null),
+        });
+      }
     } catch (error) {
       console.error("Error saving score:", error);
     }
@@ -90,14 +137,18 @@
         </tr>
       </thead>
       <tbody>
-        {#each players as player}
+        {#each players as player, index}
           <tr>
             <td class="player-box">
-              <input
-                type="text"
-                value={player.name}
-                on:input={(e) => handleNameChange(e, player)}
-              />
+              <select
+                class="player-box"
+                on:change={(e) => handleNameChange(e, index)}
+              >
+                <option class=" bg-teal-600" selected>Select Player</option>
+                {#each ids as id}
+                  <option value={id._id}>{id.name}</option>
+                {/each}
+              </select>
             </td>
             {#each player.tiebreakers as tiebreaker, index}
               <td>
@@ -141,10 +192,17 @@
       <span class="material-icons"> remove_circle_outline </span>
     </button>
   </div>
+  {#if errorMessage}
+    <p class="error">{errorMessage}</p>
+  {/if}
   <button
     class="px-4 py-2 mt-4 bg-emerald-600 text-white font-semibold rounded-md"
     on:click={handleSubmit}>Submit</button
   >
+  {#if winner}
+    {(errorMessage = "")}
+    <p>Winner: {players.find((player) => player.playerId === winner).name}</p>
+  {/if}
 </main>
 
 <style>
@@ -160,6 +218,10 @@
     height: 25px;
     border-width: 1px;
     border-color: darkgray;
+  }
+  option {
+    color: black;
+    background-color: white;
   }
   .player-box input,
   .player-box {
